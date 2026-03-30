@@ -1,8 +1,9 @@
-import 'package:sefyra/screens/homescreen.dart';
+import 'package:sefyra/screens/home_screen.dart';
 import 'package:flutter/material.dart';
-import 'package:sefyra/services/uid_gen_store.dart';
+import 'package:sefyra/services/uid_service.dart';
 
 void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
   await getStoreID();
   runApp(
     const MyApp(),
