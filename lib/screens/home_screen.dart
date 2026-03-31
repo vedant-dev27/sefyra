@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
-import 'package:sefyra/screens/recieve_screen.dart';
 import 'package:sefyra/screens/send_screen.dart';
+import 'package:sefyra/screens/recieve_screen.dart';
 import 'package:sefyra/screens/settings_screen.dart';
 
 class Homescreen extends StatefulWidget {
@@ -13,8 +13,8 @@ class Homescreen extends StatefulWidget {
 class _HomescreenState extends State<Homescreen> {
   var _selectedIndex = 0;
   final List<Widget> _pages = [
-    RecieveScreen(),
     SendScreen(),
+    RecieveScreen(),
     SettingsScreen(),
   ];
 
@@ -40,15 +40,15 @@ class _HomescreenState extends State<Homescreen> {
         items: [
           BottomNavigationBarItem(
             icon: Icon(
-              Icons.download_outlined,
-            ),
-            label: "Recieve",
-          ),
-          BottomNavigationBarItem(
-            icon: Icon(
               Icons.send_outlined,
             ),
             label: "Send",
+          ),
+          BottomNavigationBarItem(
+            icon: Icon(
+              Icons.download_outlined,
+            ),
+            label: "Recieve",
           ),
           BottomNavigationBarItem(
             icon: Icon(
