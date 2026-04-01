@@ -5,6 +5,7 @@ import 'package:flutter/material.dart';
 import 'package:file_picker/file_picker.dart';
 import 'package:sefyra/model/broadcast_model.dart';
 import 'package:sefyra/services/udp_recieve.dart';
+import 'package:sefyra/services/tcp_sender.dart';
 
 class SendScreen extends StatefulWidget {
   const SendScreen({super.key});
@@ -16,9 +17,7 @@ class SendScreen extends StatefulWidget {
 class _SendScreenState extends State<SendScreen> {
   final ReceiveBroadcast _receiver = ReceiveBroadcast();
 
-  // deviceName → full peer model (for IP on tap)
   final Map<String, BroadcastModel> _devices = {};
-  // deviceName → last time broadcast was received (for expiry)
   final Map<String, DateTime> _lastSeenTime = {};
 
   Timer? _cleanupTimer;
@@ -26,6 +25,9 @@ class _SendScreenState extends State<SendScreen> {
   File? _selectedFile;
   String? _selectedFileName;
   int? _selectedFileSize;
+
+  bool _isSending = false;
+  double _progress = 0;
 
   @override
   void initState() {
@@ -49,10 +51,12 @@ class _SendScreenState extends State<SendScreen> {
   }
 
   // =====================
-  // STALE DEVICE CLEANUP
+  // CLEANUP
   // =====================
   void _startCleanupTimer() {
-    _cleanupTimer = Timer.periodic(const Duration(milliseconds: 500), (_) {
+    _cleanupTimer = Timer.periodic(const Duration(seconds: 1), (_) {
+      if (_isSending) return;
+
       final cutoff = DateTime.now().subtract(const Duration(seconds: 2));
 
       final stale = _lastSeenTime.entries
@@ -75,6 +79,8 @@ class _SendScreenState extends State<SendScreen> {
   // FILE PICKER
   // =====================
   Future<void> _pickFile() async {
+    if (_isSending) return;
+
     final result = await FilePicker.platform.pickFiles();
 
     if (result != null && result.files.single.path != null) {
@@ -84,6 +90,57 @@ class _SendScreenState extends State<SendScreen> {
         _selectedFileSize = result.files.single.size;
       });
     }
+  }
+
+  // =====================
+  // SEND FILE
+  // =====================
+  Future<void> _sendFile(BroadcastModel peer) async {
+    if (_selectedFile == null || _isSending) return;
+
+    setState(() {
+      _isSending = true;
+      _progress = 0;
+    });
+
+    final sender = TcpSender();
+    bool success = false;
+    Object? error;
+
+    try {
+      await sender.send(
+        ip: peer.ipAddress,
+        file: _selectedFile!,
+        fileName: _selectedFileName!,
+        onProgress: (p) {
+          if (mounted) {
+            setState(() {
+              _progress = p;
+            });
+          }
+        },
+      );
+      success = true;
+    } catch (e) {
+      error = e;
+    }
+
+    if (!mounted) return;
+
+    if (success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(content: Text("File sent successfully")),
+      );
+    } else {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(content: Text("Send failed: $error")),
+      );
+    }
+
+    setState(() {
+      _isSending = false;
+      _progress = 0;
+    });
   }
 
   @override
@@ -100,13 +157,10 @@ class _SendScreenState extends State<SendScreen> {
     return Scaffold(
       body: Column(
         children: [
-          // =============================
-          // TOP HALF — FILE SELECTOR
-          // =============================
+          // FILE SELECTOR
           Expanded(
             flex: 1,
-            child: Container(
-              width: double.infinity,
+            child: Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 mainAxisAlignment: MainAxisAlignment.center,
@@ -116,7 +170,7 @@ class _SendScreenState extends State<SendScreen> {
                     icon: const Icon(Icons.attach_file),
                     label: const Text("Select File"),
                   ),
-                  const SizedBox(height: 20),
+                  const SizedBox(height: 16),
                   if (_selectedFile != null)
                     Card(
                       child: ListTile(
@@ -127,6 +181,10 @@ class _SendScreenState extends State<SendScreen> {
                         ),
                       ),
                     ),
+                  if (_isSending) ...[
+                    const SizedBox(height: 20),
+                    LinearProgressIndicator(value: _progress),
+                  ],
                 ],
               ),
             ),
@@ -134,9 +192,7 @@ class _SendScreenState extends State<SendScreen> {
 
           const Divider(height: 1),
 
-          // =============================
-          // BOTTOM HALF — DEVICE LIST
-          // =============================
+          // DEVICE LIST
           Expanded(
             flex: 1,
             child: deviceNames.isEmpty
@@ -151,22 +207,8 @@ class _SendScreenState extends State<SendScreen> {
                         leading: const Icon(Icons.devices),
                         title: Text(name),
                         subtitle: Text(peer.ipAddress),
-                        onTap: () {
-                          if (_selectedFile == null) {
-                            ScaffoldMessenger.of(context).showSnackBar(
-                              const SnackBar(
-                                content: Text("Please select a file first"),
-                              ),
-                            );
-                            return;
-                          }
-
-                          debugPrint(
-                            "Initiating TCP to ${peer.ipAddress} — file: $_selectedFileName",
-                          );
-
-                          // Next: TcpSender.send(ip: peer.ipAddress, file: _selectedFile!)
-                        },
+                        enabled: !_isSending,
+                        onTap: () => _sendFile(peer),
                       );
                     },
                   ),
