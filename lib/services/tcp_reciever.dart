@@ -1,5 +1,4 @@
 import 'dart:io';
-import 'dart:typed_data';
 
 class TcpReceiver {
   static const int _port = 61234;
@@ -9,7 +8,7 @@ class TcpReceiver {
   Future<void> start({
     required String tempDirectory,
     required Future<String> Function(String tempPath, String fileName)
-    saveToDownloads,
+        saveToDownloads,
     void Function(String fileName)? onReceiveStart,
     void Function(double progress)? onProgress,
     void Function(String filePath)? onReceiveComplete,
