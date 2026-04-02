@@ -25,97 +25,118 @@ class _FilePickerPanelState extends State<FilePickerPanel> {
     });
   }
 
+  IconData _iconForType(String type) {
+    switch (type.toLowerCase()) {
+      case 'image':
+        return Icons.image_rounded;
+      case 'video':
+        return Icons.videocam_rounded;
+      case 'audio':
+        return Icons.audiotrack_rounded;
+      case 'pdf':
+        return Icons.picture_as_pdf_rounded;
+      default:
+        return Icons.insert_drive_file_rounded;
+    }
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
+    final textTheme = Theme.of(context).textTheme;
 
     return Container(
       padding: const EdgeInsets.fromLTRB(16, 12, 16, 16),
       decoration: BoxDecoration(
         color: colors.surface,
-        borderRadius: const BorderRadius.vertical(top: Radius.circular(24)),
-
-        // ✅ Replace shadow with subtle divider
-        border: Border(
-          top: BorderSide(
-            color: colors.onSurface.withValues(alpha: 0.08),
-            width: 1,
+        borderRadius: const BorderRadius.vertical(top: Radius.circular(28)),
+        boxShadow: [
+          BoxShadow(
+            color: colors.shadow.withOpacity(0.08),
+            blurRadius: 10,
+            offset: const Offset(0, -4),
           ),
-        ),
+        ],
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          // ❌ REMOVE THIS (fake drag handle)
-          // Container(...)
+          // Drag handle
+          Container(
+            width: 36,
+            height: 4,
+            margin: const EdgeInsets.only(bottom: 12),
+            decoration: BoxDecoration(
+              color: colors.onSurface.withOpacity(0.12),
+              borderRadius: BorderRadius.circular(2),
+            ),
+          ),
 
-          // File list
+          // File chips / empty state
           if (_files.isEmpty)
             Padding(
-              padding: const EdgeInsets.symmetric(vertical: 20),
-              child: Text(
-                "No files selected",
-                style: TextStyle(
-                  color: colors.onSurface.withValues(alpha: 0.6),
-                ),
+              padding: const EdgeInsets.only(bottom: 12),
+              child: Row(
+                children: [
+                  Icon(Icons.folder_open_rounded,
+                      size: 18, color: colors.onSurface.withOpacity(0.35)),
+                  const SizedBox(width: 8),
+                  Text('No files selected',
+                      style: textTheme.bodySmall
+                          ?.copyWith(color: colors.onSurface.withOpacity(0.4))),
+                ],
               ),
             )
           else
             SizedBox(
-              height: 80,
-              child: ListView.builder(
+              height: 68,
+              child: ListView.separated(
                 scrollDirection: Axis.horizontal,
                 itemCount: _files.length,
+                separatorBuilder: (_, __) => const SizedBox(width: 8),
                 itemBuilder: (context, index) {
                   final file = _files[index];
-
-                  return Container(
-                    width: 140,
-                    margin: const EdgeInsets.only(right: 10),
-                    padding: const EdgeInsets.all(10),
-                    decoration: BoxDecoration(
-                      // 🔥 reduce heavy blue
-                      color: colors.surfaceContainerHighest,
-                      borderRadius: BorderRadius.circular(16),
-                    ),
-                    child: Stack(
-                      children: [
-                        Column(
+                  return Stack(
+                    clipBehavior: Clip.none,
+                    children: [
+                      Container(
+                        width: 120,
+                        padding: const EdgeInsets.symmetric(
+                            vertical: 10, horizontal: 12),
+                        decoration: BoxDecoration(
+                          color: colors.surfaceVariant,
+                          borderRadius: BorderRadius.circular(16),
+                        ),
+                        child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Text(
-                              file["type"]!,
-                              style: TextStyle(
-                                fontSize: 12,
-                                color: colors.onSurface.withValues(alpha: 0.6),
-                              ),
-                            ),
+                            Icon(_iconForType(file["type"]!),
+                                size: 20, color: colors.primary),
                             const SizedBox(height: 6),
-                            Text(
-                              file["name"]!,
-                              maxLines: 2,
-                              overflow: TextOverflow.ellipsis,
-                              style: TextStyle(
-                                fontWeight: FontWeight.w500,
-                                color: colors.onSurface,
-                              ),
-                            ),
+                            Text(file["name"]!,
+                                maxLines: 2,
+                                overflow: TextOverflow.ellipsis,
+                                style: textTheme.labelSmall?.copyWith(
+                                    fontWeight: FontWeight.w500,
+                                    color: colors.onSurface)),
                           ],
                         ),
-                        Positioned(
-                          right: 0,
-                          top: 0,
-                          child: GestureDetector(
-                            onTap: () => _removeFile(index),
-                            child: Icon(
-                              Icons.close,
-                              size: 18,
-                              color: colors.onSurface.withValues(alpha: 0.7),
-                            ),
+                      ),
+                      Positioned(
+                        right: -6,
+                        top: -6,
+                        child: GestureDetector(
+                          onTap: () => _removeFile(index),
+                          child: CircleAvatar(
+                            radius: 10,
+                            backgroundColor: colors.onSurface.withOpacity(0.15),
+                            child: Icon(Icons.close_rounded,
+                                size: 14,
+                                color: colors.onSurface.withOpacity(0.6)),
                           ),
-                        )
-                      ],
-                    ),
+                        ),
+                      ),
+                    ],
                   );
                 },
               ),
@@ -123,16 +144,17 @@ class _FilePickerPanelState extends State<FilePickerPanel> {
 
           const SizedBox(height: 12),
 
+          // Add file button
           SizedBox(
             width: double.infinity,
-            child: ElevatedButton.icon(
+            child: FilledButton.icon(
               onPressed: _addDummyFile,
-              icon: const Icon(Icons.add),
-              label: const Text("Add File"),
-              style: ElevatedButton.styleFrom(
-                padding: const EdgeInsets.symmetric(vertical: 14),
+              icon: const Icon(Icons.add_rounded, size: 18),
+              label: const Text('Add Files'),
+              style: FilledButton.styleFrom(
+                padding: const EdgeInsets.symmetric(vertical: 12),
                 shape: RoundedRectangleBorder(
-                  borderRadius: BorderRadius.circular(14),
+                  borderRadius: BorderRadius.circular(16),
                 ),
               ),
             ),

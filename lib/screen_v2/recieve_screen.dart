@@ -1,5 +1,9 @@
 import 'package:flutter/material.dart';
 import 'package:sefyra/widgets/ripple_widget.dart';
+import 'package:sefyra/services/device_config.dart';
+import 'package:sefyra/services/udp_fire.dart';
+import 'package:sefyra/model/payload.dart';
+import 'package:sefyra/services/ip_config.dart';
 
 class RecievePage extends StatefulWidget {
   const RecievePage({super.key});
@@ -9,6 +13,42 @@ class RecievePage extends StatefulWidget {
 }
 
 class _RecievePageState extends State<RecievePage> {
+  final UdpFire udpFire = UdpFire();
+  String named = "";
+  String devid = "";
+
+  void _initUdp() async {
+    final name = await getDeviceName();
+    final id = await getStoreID();
+    final ip = await getLocalIp();
+
+    setState(() {
+      named = name;
+      devid = id;
+    });
+
+    final payload = Payload(
+      deviceId: id,
+      deviceName: name,
+      deviceType: "phone",
+      ipAddress: ip ?? "0.0.0.0",
+    );
+
+    udpFire.startUdp(payload);
+  }
+
+  @override
+  void initState() {
+    super.initState();
+    _initUdp();
+  }
+
+  @override
+  void dispose() {
+    udpFire.stopUdp();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
@@ -29,7 +69,7 @@ class _RecievePageState extends State<RecievePage> {
                     ),
                     const SizedBox(height: 24),
                     Text(
-                      "Cosmic Pineapple",
+                      named,
                       style: TextStyle(
                         fontSize: 40,
                         fontWeight: FontWeight.w600,

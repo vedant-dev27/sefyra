@@ -1,7 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:sefyra/screen_v2/settings_screen.dart';
 import 'package:sefyra/screens/send_screen.dart';
 import 'package:sefyra/screens/recieve_screen.dart';
-import 'package:sefyra/screens/settings_screen.dart';
 
 class Homescreen extends StatefulWidget {
   const Homescreen({super.key});

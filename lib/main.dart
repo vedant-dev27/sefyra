@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:sefyra/screen_v2/recieve.dart';
-import 'package:sefyra/screen_v2/send.dart';
+import 'package:sefyra/screen_v2/recieve_screen.dart';
+import 'package:sefyra/screen_v2/send_screen.dart';
 
 void main() {
-  runApp(const MyApp());
+  runApp(
+    const MyApp(),
+  );
 }
 
 class MyApp extends StatelessWidget {
@@ -65,32 +67,17 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
-  late final PageController controller;
-
-  @override
-  void initState() {
-    super.initState();
-    controller = PageController(initialPage: 1000);
-  }
-
-  @override
-  void dispose() {
-    controller.dispose();
-    super.dispose();
-  }
-
   @override
   Widget build(BuildContext context) {
     return Scaffold(
       body: Stack(
         children: [
-          PageView.builder(
-            controller: controller,
+          PageView(
             scrollDirection: Axis.horizontal,
-            physics: const BouncingScrollPhysics(),
-            itemBuilder: (context, index) {
-              return index % 2 == 0 ? RecievePage() : SendPage();
-            },
+            children: [
+              RecievePage(),
+              SendPage(),
+            ],
           ),
           Positioned(
             top: MediaQuery.of(context).padding.top + 8,

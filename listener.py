@@ -1,32 +1,14 @@
 import socket
-import json
 
-PORT = 41234 # use the same port as your Flutter UDP broadcast
+PORT = 28167  # use SAME port as your Flutter app
 
 sock = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+sock.bind(("", PORT))  # listen on all interfaces
 
-# allow reuse
-sock.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-
-sock.bind(("", PORT))
-
-print(f"Listening for UDP broadcasts on port {PORT}...\n")
+print("Listening for UDP broadcasts...\n")
 
 while True:
-    data, addr = sock.recvfrom(4096)
+    data, addr = sock.recvfrom(1024)
+    message = data.decode()
 
-    try:
-        message = data.decode("utf-8")
-        parsed = json.loads(message)
-
-        print("=== Packet Received ===")
-        print(f"From: {addr}")
-        print("Raw:", message)
-        print("JSON:", parsed)
-        print()
-
-    except Exception as e:
-        print("Invalid packet from", addr)
-        print("Raw bytes:", data)
-        print("Error:", e)
-        print()
+    print(f"Received from {addr}: {message}")
