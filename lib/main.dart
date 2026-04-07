@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
 import 'package:sefyra/screen_v2/recieve_screen.dart';
 import 'package:sefyra/screen_v2/send_screen.dart';
+import 'package:sefyra/screen_v2/settings_screen.dart';
 
 void main() {
   runApp(
@@ -94,7 +95,14 @@ class _HomeScreenState extends State<HomeScreen> {
                   icon: Icon(
                     Icons.settings,
                   ),
-                  onPressed: () {},
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) => const SettingsScreen(),
+                      ),
+                    );
+                  },
                 ),
               ],
             ),

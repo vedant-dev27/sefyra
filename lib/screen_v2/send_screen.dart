@@ -1,6 +1,6 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
-import 'package:sefyra/widgets/file_picker.dart';
+import 'package:sefyra/widgets/file_picker_widget.dart';
 import 'package:sefyra/services/udp_catch.dart';
 import 'package:sefyra/model/payload.dart';
 import 'package:shared_preferences/shared_preferences.dart';
@@ -85,19 +85,21 @@ class _SendPageState extends State<SendPage> {
                     )
                   : ListView.builder(
                       reverse: true,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
+                      padding: const EdgeInsets.symmetric(
+                        horizontal: 16,
+                      ),
                       itemCount: discoveredDevices.length,
                       itemBuilder: (context, index) {
                         final device = discoveredDevices[index];
                         return _DeviceCard(
                           device: device,
-                          icon: _iconForDeviceType(device.deviceType),
+                          icon: _iconForDeviceType(
+                            device.deviceType,
+                          ),
                         );
                       },
                     ),
             ),
-
-            // File picker anchored to bottom
             const FilePickerPanel(),
           ],
         ),
@@ -118,17 +120,26 @@ class _DeviceCard extends StatelessWidget {
     final textTheme = Theme.of(context).textTheme;
 
     return Container(
-      margin: const EdgeInsets.only(bottom: 10),
+      margin: const EdgeInsets.only(
+        bottom: 10,
+      ),
       child: Material(
         color: colors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(18),
+        borderRadius: BorderRadius.circular(
+          18,
+        ),
         child: InkWell(
-          borderRadius: BorderRadius.circular(18),
+          borderRadius: BorderRadius.circular(
+            18,
+          ),
           onTap: () {
             // TCP connect goes here
           },
           child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
+            padding: const EdgeInsets.symmetric(
+              horizontal: 10,
+              vertical: 14,
+            ),
             child: Row(
               children: [
                 Container(
@@ -144,7 +155,9 @@ class _DeviceCard extends StatelessWidget {
                     size: 24,
                   ),
                 ),
-                const SizedBox(width: 14),
+                const SizedBox(
+                  width: 14,
+                ),
                 Expanded(
                   child: Column(
                     crossAxisAlignment: CrossAxisAlignment.start,
@@ -160,7 +173,9 @@ class _DeviceCard extends StatelessWidget {
                       Text(
                         device.ipAddress,
                         style: textTheme.bodySmall?.copyWith(
-                          color: colors.onSurface.withValues(alpha: 0.5),
+                          color: colors.onSurface.withValues(
+                            alpha: 0.5,
+                          ),
                           fontFamily: 'monospace',
                         ),
                       ),

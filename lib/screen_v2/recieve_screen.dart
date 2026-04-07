@@ -1,9 +1,11 @@
 import 'package:flutter/material.dart';
-import 'package:sefyra/widgets/ripple_widget.dart';
+//import 'package:sefyra/widgets/ripple_widget.dart';
 import 'package:sefyra/services/device_config.dart';
+//import 'package:sefyra/services/tcp.dart';
 import 'package:sefyra/services/udp_fire.dart';
 import 'package:sefyra/model/payload.dart';
 import 'package:sefyra/services/ip_config.dart';
+import 'package:sefyra/widgets/ripple_widget.dart';
 
 class RecievePage extends StatefulWidget {
   const RecievePage({super.key});
@@ -35,6 +37,7 @@ class _RecievePageState extends State<RecievePage> {
     );
 
     udpFire.startUdp(payload);
+    // startTcpServer();
   }
 
   @override
