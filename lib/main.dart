@@ -2,11 +2,26 @@ import 'package:flutter/material.dart';
 import 'package:sefyra/screen_v2/recieve_screen.dart';
 import 'package:sefyra/screen_v2/send_screen.dart';
 import 'package:sefyra/screen_v2/settings_screen.dart';
+import 'package:media_store_plus/media_store_plus.dart';
+import 'dart:async';
 
-void main() {
-  runApp(
-    const MyApp(),
-  );
+Future<void> main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+
+  await MediaStore.ensureInitialized();
+  MediaStore.appFolder = "Sefyra";
+
+  runZonedGuarded(() {
+    runApp(const MyApp());
+  }, (error, stack) {
+    print("🔥 ZONE ERROR: $error");
+    print(stack);
+  });
+
+  FlutterError.onError = (FlutterErrorDetails details) {
+    print("🔥 FLUTTER ERROR: ${details.exception}");
+    print(details.stack);
+  };
 }
 
 class MyApp extends StatelessWidget {

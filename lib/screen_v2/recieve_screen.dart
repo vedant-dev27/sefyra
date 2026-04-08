@@ -1,7 +1,6 @@
 import 'package:flutter/material.dart';
-//import 'package:sefyra/widgets/ripple_widget.dart';
 import 'package:sefyra/services/device_config.dart';
-//import 'package:sefyra/services/tcp.dart';
+import 'package:sefyra/services/tcp_server.dart';
 import 'package:sefyra/services/udp_fire.dart';
 import 'package:sefyra/model/payload.dart';
 import 'package:sefyra/services/ip_config.dart';
@@ -37,18 +36,19 @@ class _RecievePageState extends State<RecievePage> {
     );
 
     udpFire.startUdp(payload);
-    // startTcpServer();
   }
 
   @override
   void initState() {
     super.initState();
     _initUdp();
+    TcpServer.startTCP();
   }
 
   @override
   void dispose() {
     udpFire.stopUdp();
+    TcpServer.stopTCP();
     super.dispose();
   }
 
