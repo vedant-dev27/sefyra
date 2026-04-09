@@ -10,12 +10,12 @@ Peer-to-peer file transfer for Android over local WiFi. No backend, no accounts,
   <img src="screenshots/app_icon.png" width="120"/>
 </p>
 <p align="center">
-  <img src="screenshots/sendpage.jpg" width="250"/>
-  <img src="screenshots/receiving.jpg" width="250"/>
+    <img src="screenshots/sendpage.jpg" width="250"/>
+    <img src="screenshots/receivepage.jpg" width="250"/>
 </p>
 <p align="center">
-  <img src="screenshots/receivepage.jpg" width="250"/>
-  <img src="screenshots/sending.jpg" width="250"/>
+    <img src="screenshots/receiving.jpg" width="250"/>
+    <img src="screenshots/sending.jpg" width="250"/>
 </p>
 
 ---
