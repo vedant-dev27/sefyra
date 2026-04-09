@@ -5,6 +5,7 @@ import 'package:sefyra/services/tcp_server.dart';
 import 'package:sefyra/services/udp_catch.dart';
 import 'package:sefyra/model/payload.dart';
 import 'package:sefyra/widgets/device_card.dart';
+import 'package:sefyra/widgets/scan_widget.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sefyra/widgets/file_picker_widget.dart';
 import 'package:sefyra/widgets/loading_widget.dart';
@@ -198,25 +199,7 @@ class _SendPageState extends State<SendPage> {
                       children: [
                         Expanded(
                           child: _devices.isEmpty
-                              ? const Center(
-                                  child: Column(
-                                    mainAxisAlignment: MainAxisAlignment.center,
-                                    children: [
-                                      Icon(
-                                        Icons.radar,
-                                        size: 64,
-                                      ),
-                                      SizedBox(height: 16),
-                                      Text(
-                                        "Looking for devices",
-                                        style: TextStyle(
-                                          fontSize: 20,
-                                          fontWeight: FontWeight.w600,
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                )
+                              ? ScanField()
                               : ListView.builder(
                                   reverse: true,
                                   padding: const EdgeInsets.symmetric(
