@@ -87,12 +87,6 @@ Receiver saves file → both sides show completion
 
 ---
 
-## APK size
-
-~35MB (split APK by ABI)
-
----
-
 ## License
 
 MIT
