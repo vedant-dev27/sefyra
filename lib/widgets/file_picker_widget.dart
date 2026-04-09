@@ -1,121 +1,65 @@
 import 'package:flutter/material.dart';
 import 'package:sefyra/services/file_picker.dart';
 
-class FilePickerPanel extends StatefulWidget {
+class FilePickerPanel extends StatelessWidget {
+  final String? selectedFile;
   final Function(String?) onFilePicked;
 
   const FilePickerPanel({
     super.key,
+    required this.selectedFile,
     required this.onFilePicked,
   });
 
   @override
-  State<FilePickerPanel> createState() => _FilePickerPanelState();
-}
-
-class _FilePickerPanelState extends State<FilePickerPanel> {
-  final List<Map<String, String>> _files = [];
-
-  void _addFile(String path) {
-    final name = path.split('/').last;
-
-    final isDuplicate = _files.any((f) => f["path"] == path);
-    if (isDuplicate) return;
-
-    setState(() {
-      _files.add({
-        "name": name,
-        "path": path,
-        "type": _inferType(name),
-      });
-    });
-
-    widget.onFilePicked(path);
-  }
-
-  void _removeFile(int index) {
-    setState(() => _files.removeAt(index));
-  }
-
-  String _inferType(String name) {
-    final ext = name.split('.').last.toLowerCase();
-
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'].contains(ext)) {
-      return 'image';
-    }
-
-    if (['mp4', 'mov', 'avi', 'mkv'].contains(ext)) return 'video';
-    if (['mp3', 'wav', 'aac', 'flac'].contains(ext)) return 'audio';
-    if (ext == 'pdf') return 'pdf';
-
-    return 'other';
-  }
-
-  IconData _iconForType(String type) {
-    switch (type) {
-      case 'image':
-        return Icons.image_rounded;
-      case 'video':
-        return Icons.videocam_rounded;
-      case 'audio':
-        return Icons.audiotrack_rounded;
-      case 'pdf':
-        return Icons.picture_as_pdf_rounded;
-      default:
-        return Icons.insert_drive_file_rounded;
-    }
-  }
-
-  @override
   Widget build(BuildContext context) {
     final colors = Theme.of(context).colorScheme;
-    final hasFiles = _files.isNotEmpty;
+    final text = Theme.of(context).textTheme;
+    final hasFile = selectedFile != null;
 
     return Container(
-      padding: const EdgeInsets.fromLTRB(16, 10, 16, 24),
+      padding: const EdgeInsets.fromLTRB(20, 20, 20, 36),
       decoration: BoxDecoration(
-        color: colors.surface,
+        color: colors.surfaceContainerLow,
         borderRadius: const BorderRadius.vertical(top: Radius.circular(32)),
       ),
       child: Column(
         mainAxisSize: MainAxisSize.min,
+        crossAxisAlignment: CrossAxisAlignment.stretch,
         children: [
-          if (!hasFiles)
-            const Text("No files selected")
-          else
-            SizedBox(
-              height: 80,
-              child: ListView.builder(
-                scrollDirection: Axis.horizontal,
-                itemCount: _files.length,
-                itemBuilder: (_, index) {
-                  final file = _files[index];
-
-                  return Padding(
-                    padding: const EdgeInsets.only(right: 8),
-                    child: Chip(
-                      label: Text(file["name"]!),
-                      avatar: Icon(_iconForType(file["type"]!)),
-                      deleteIcon: const Icon(Icons.close),
-                      onDeleted: () => _removeFile(index),
-                    ),
-                  );
-                },
+          Text(
+            hasFile ? selectedFile!.split('/').last : "Nothing selected",
+            style: text.titleMedium?.copyWith(
+              fontSize: 18,
+              fontWeight: FontWeight.w700,
+              color:
+                  hasFile ? colors.onSurface : colors.onSurface.withAlpha(80),
+            ),
+            overflow: TextOverflow.ellipsis,
+          ),
+          const SizedBox(
+            height: 20,
+          ),
+          FilledButton.icon(
+            onPressed: () async {
+              final path = await pickFile();
+              onFilePicked(path);
+            },
+            icon: const Icon(Icons.upload_file_rounded),
+            label: const Text(
+              "Choose File",
+              style: TextStyle(
+                fontSize: 20,
+                fontWeight: FontWeight.w700,
+                letterSpacing: 0.5,
               ),
             ),
-          const SizedBox(height: 16),
-          SizedBox(
-            height: 56,
-            child: FilledButton.icon(
-              onPressed: () async {
-                final path = await pickFile();
-
-                if (path != null) {
-                  _addFile(path);
-                }
-              },
-              icon: const Icon(Icons.add),
-              label: const Text("Add File"),
+            style: FilledButton.styleFrom(
+              iconSize: 24,
+              minimumSize: const Size.fromHeight(56),
+              shape: RoundedRectangleBorder(
+                borderRadius: BorderRadius.circular(16),
+              ),
             ),
           ),
         ],

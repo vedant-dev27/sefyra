@@ -4,7 +4,7 @@ import 'package:sefyra/services/tcp_server.dart';
 import 'package:sefyra/services/udp_fire.dart';
 import 'package:sefyra/model/payload.dart';
 import 'package:sefyra/services/ip_config.dart';
-import 'package:sefyra/widgets/material.dart';
+import 'package:sefyra/widgets/loading_widget.dart';
 import 'package:sefyra/widgets/ripple_widget.dart';
 
 class RecievePage extends StatefulWidget {

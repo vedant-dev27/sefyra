@@ -4,8 +4,10 @@ import 'package:sefyra/services/tcp_client.dart';
 import 'package:sefyra/services/tcp_server.dart';
 import 'package:sefyra/services/udp_catch.dart';
 import 'package:sefyra/model/payload.dart';
+import 'package:sefyra/widgets/device_card.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sefyra/widgets/file_picker_widget.dart';
+import 'package:sefyra/widgets/loading_widget.dart';
 
 class SendPage extends StatefulWidget {
   final TcpServer tcpServer;
@@ -29,18 +31,22 @@ class _SendPageState extends State<SendPage> {
   Timer? _cleanupTimer;
 
   String? _selectedFile;
+  String? _fileToSend;
+  String? _receiverName;
+  bool _isSending = false;
+  bool _showCompleted = false;
+  final ValueNotifier<double> _sendProgress = ValueNotifier(0.0);
 
   @override
   void initState() {
     super.initState();
-
     tcpServer = widget.tcpServer;
-
     _startDiscovery();
   }
 
   @override
   void dispose() {
+    _sendProgress.dispose();
     _cleanupTimer?.cancel();
     _udp.stopUdp();
     super.dispose();
@@ -65,7 +71,6 @@ class _SendPageState extends State<SendPage> {
 
     setState(() {
       _lastSeen[device.deviceId] = DateTime.now();
-
       final exists = _devices.any((d) => d.deviceId == device.deviceId);
       if (!exists) _devices.add(device);
     });
@@ -86,130 +91,193 @@ class _SendPageState extends State<SendPage> {
 
   void _onFilePicked(String? filePath) {
     if (filePath == null) return;
-
-    setState(() {
-      _selectedFile = filePath;
-    });
+    setState(() => _selectedFile = filePath);
   }
 
-  Future<void> _sendFile(String ip) async {
-    if (_selectedFile == null) return;
+  Future<void> _sendFile(String ip, String deviceName) async {
+    if (_selectedFile == null || _isSending) return;
 
-    await TcpClient.tcpConnect(ip, _selectedFile!);
+    final captured = _selectedFile!;
+
+    setState(() {
+      _isSending = true;
+      _receiverName = deviceName;
+      _fileToSend = captured;
+    });
+    _sendProgress.value = 0.0;
+
+    await TcpClient.tcpConnect(
+      ip,
+      captured,
+      onProgress: (sent, total) {
+        _sendProgress.value = sent / total;
+      },
+    );
+
+    if (!mounted) return;
+
+    _sendProgress.value = 0.0;
+    setState(() {
+      _isSending = false;
+      _showCompleted = true;
+      _selectedFile = null;
+      _fileToSend = null;
+    });
+
+    Future.delayed(const Duration(milliseconds: 1200), () {
+      if (!mounted) return;
+      setState(() {
+        _showCompleted = false;
+        _receiverName = null;
+      });
+    });
   }
 
   @override
   Widget build(BuildContext context) {
+    final colors = Theme.of(context).colorScheme;
+
     return Scaffold(
       body: SafeArea(
-        child: Column(
-          children: [
-            Expanded(
-              child: _devices.isEmpty
-                  ? const Center(child: Text("Scanning..."))
-                  : ListView.builder(
-                      reverse: true,
-                      padding: const EdgeInsets.symmetric(horizontal: 16),
-                      itemCount: _devices.length,
-                      itemBuilder: (context, index) {
-                        final device = _devices[index];
-
-                        return DeviceCard(
-                          device: device,
-                          onTap: () => _sendFile(device.ipAddress),
-                        );
-                      },
+        child: AnimatedSwitcher(
+          duration: const Duration(milliseconds: 400),
+          child: _showCompleted
+              ? const _CompletedView(key: ValueKey('done'))
+              : _isSending
+                  ? Center(
+                      key: const ValueKey('sending'),
+                      child: Column(
+                        mainAxisAlignment: MainAxisAlignment.center,
+                        children: [
+                          ValueListenableBuilder<double>(
+                            valueListenable: _sendProgress,
+                            builder: (context, progress, _) {
+                              return Stack(
+                                alignment: Alignment.center,
+                                children: [
+                                  WavyProgressIndicator(progress: progress),
+                                  Text(
+                                    "${(progress * 100).toStringAsFixed(0)}%",
+                                    style: TextStyle(
+                                      fontSize: 42,
+                                      fontWeight: FontWeight.w600,
+                                      color: colors.primary,
+                                    ),
+                                  ),
+                                ],
+                              );
+                            },
+                          ),
+                          const SizedBox(height: 24),
+                          Text(
+                            _fileToSend?.split('/').last ?? '',
+                            style: TextStyle(
+                              fontSize: 42,
+                              fontWeight: FontWeight.w600,
+                              color: colors.primary,
+                              letterSpacing: 1.2,
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                          const SizedBox(height: 6),
+                          Text(
+                            "Sending to ${_receiverName ?? '...'}",
+                            style: TextStyle(
+                              fontSize: 20,
+                              color: colors.onSurface.withAlpha(180),
+                            ),
+                            maxLines: 1,
+                            overflow: TextOverflow.ellipsis,
+                          ),
+                        ],
+                      ),
+                    )
+                  : Column(
+                      key: const ValueKey('idle'),
+                      children: [
+                        Expanded(
+                          child: _devices.isEmpty
+                              ? const Center(
+                                  child: Column(
+                                    mainAxisAlignment: MainAxisAlignment.center,
+                                    children: [
+                                      Icon(
+                                        Icons.radar,
+                                        size: 64,
+                                      ),
+                                      SizedBox(height: 16),
+                                      Text(
+                                        "Looking for devices",
+                                        style: TextStyle(
+                                          fontSize: 20,
+                                          fontWeight: FontWeight.w600,
+                                        ),
+                                      ),
+                                    ],
+                                  ),
+                                )
+                              : ListView.builder(
+                                  reverse: true,
+                                  padding: const EdgeInsets.symmetric(
+                                      horizontal: 16),
+                                  itemCount: _devices.length,
+                                  itemBuilder: (context, index) {
+                                    final device = _devices[index];
+                                    return DeviceCard(
+                                      device: device,
+                                      onTap: () => _sendFile(
+                                          device.ipAddress, device.deviceName),
+                                    );
+                                  },
+                                ),
+                        ),
+                        FilePickerPanel(
+                          selectedFile: _selectedFile,
+                          onFilePicked: _onFilePicked,
+                        ),
+                      ],
                     ),
-            ),
-            FilePickerPanel(
-              onFilePicked: _onFilePicked,
-            ),
-          ],
         ),
       ),
     );
   }
 }
 
-class DeviceCard extends StatelessWidget {
-  final Payload device;
-  final VoidCallback onTap;
-
-  const DeviceCard({
-    super.key,
-    required this.device,
-    required this.onTap,
-  });
-
-  IconData _iconForType(String type) {
-    switch (type.toLowerCase()) {
-      case 'tablet':
-        return Icons.tablet;
-      case 'laptop':
-      case 'desktop':
-        return Icons.laptop;
-      case 'tv':
-        return Icons.tv;
-      default:
-        return Icons.smartphone;
-    }
-  }
+class _CompletedView extends StatelessWidget {
+  const _CompletedView({super.key});
 
   @override
   Widget build(BuildContext context) {
-    final colors = Theme.of(context).colorScheme;
-    final text = Theme.of(context).textTheme;
+    final color = Theme.of(context).colorScheme.primary;
 
-    return Container(
-      margin: const EdgeInsets.only(bottom: 10),
-      child: Material(
-        color: colors.surfaceContainerLow,
-        borderRadius: BorderRadius.circular(18),
-        child: InkWell(
-          onTap: onTap,
-          borderRadius: BorderRadius.circular(18),
-          child: Padding(
-            padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 14),
-            child: Row(
-              children: [
-                Container(
-                  width: 46,
-                  height: 46,
-                  decoration: BoxDecoration(
-                    color: colors.primaryContainer,
-                    borderRadius: BorderRadius.circular(14),
-                  ),
-                  child: Icon(
-                    _iconForType(device.deviceType),
-                    color: colors.onPrimaryContainer,
-                  ),
-                ),
-                const SizedBox(width: 14),
-                Expanded(
-                  child: Column(
-                    crossAxisAlignment: CrossAxisAlignment.start,
-                    children: [
-                      Text(
-                        device.deviceName,
-                        style: text.bodyLarge?.copyWith(
-                          fontWeight: FontWeight.w600,
-                        ),
-                      ),
-                      Text(
-                        device.ipAddress,
-                        style: text.bodySmall?.copyWith(
-                          fontFamily: 'monospace',
-                          color:
-                              colors.onSurface.withAlpha((0.5 * 255).round()),
-                        ),
-                      ),
-                    ],
-                  ),
-                ),
-              ],
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          TweenAnimationBuilder<double>(
+            tween: Tween(begin: 0, end: 1),
+            duration: const Duration(milliseconds: 500),
+            curve: Curves.easeOutBack,
+            builder: (context, scale, child) {
+              return Transform.scale(scale: scale, child: child);
+            },
+            child: Icon(
+              Icons.check_circle_rounded,
+              size: 120,
+              color: color,
             ),
           ),
-        ),
+          const SizedBox(height: 16),
+          Text(
+            "File sent",
+            style: TextStyle(
+              fontSize: 22,
+              fontWeight: FontWeight.w600,
+              color: color,
+            ),
+          ),
+        ],
       ),
     );
   }
