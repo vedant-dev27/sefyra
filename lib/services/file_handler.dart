@@ -14,7 +14,5 @@ class FileHandler {
       dirType: DirType.download,
       dirName: DirName.download,
     );
-
-    print("Saved to Downloads: $fileName");
   }
 }

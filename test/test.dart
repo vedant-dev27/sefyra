@@ -12,8 +12,6 @@ class TcpClient {
 
     await socket.flush(); // send everything
     await socket.close(); // 🔥 signals completion
-
-    print('Data sent to the server.');
   }
 }
 

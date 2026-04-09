@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'package:sefyra/services/device_config.dart';
 
 class TcpClient {
   static Future<void> tcpConnect(String ipAddress, String filePath) async {
@@ -9,24 +10,16 @@ class TcpClient {
 
       final file = File(filePath);
       final fileName = file.uri.pathSegments.last;
-      final size = await file.length();
+      final fileSize = await file.length();
 
-      print("Connecting to $ipAddress");
-      print("Sending: $fileName ($size bytes)");
+      final deviceName = await getDeviceName();
 
-      // 🔹 Send header
-      socket.write('$fileName|$size\n');
+      socket.write('$fileName|$fileSize|$deviceName\n');
       await socket.flush();
 
-      // 🔹 Send file stream
       await socket.addStream(file.openRead());
 
-      // 🔹 Final flush
       await socket.flush();
-
-      print("File sent successfully");
-    } catch (e) {
-      print("TCP CLIENT ERROR: $e");
     } finally {
       await socket?.close();
       await socket?.done;

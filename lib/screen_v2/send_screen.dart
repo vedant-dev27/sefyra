@@ -1,30 +1,41 @@
 import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:sefyra/services/tcp_client.dart';
+import 'package:sefyra/services/tcp_server.dart';
 import 'package:sefyra/services/udp_catch.dart';
 import 'package:sefyra/model/payload.dart';
 import 'package:shared_preferences/shared_preferences.dart';
 import 'package:sefyra/widgets/file_picker_widget.dart';
 
 class SendPage extends StatefulWidget {
-  const SendPage({super.key});
+  final TcpServer tcpServer;
+
+  const SendPage({
+    super.key,
+    required this.tcpServer,
+  });
 
   @override
   State<SendPage> createState() => _SendPageState();
 }
 
 class _SendPageState extends State<SendPage> {
+  late final TcpServer tcpServer;
+
   final UdpCatch _udp = UdpCatch();
 
   final List<Payload> _devices = [];
   final Map<String, DateTime> _lastSeen = {};
   Timer? _cleanupTimer;
 
-  String? _selectedFile; // 🔥 single source of truth
+  String? _selectedFile;
 
   @override
   void initState() {
     super.initState();
+
+    tcpServer = widget.tcpServer;
+
     _startDiscovery();
   }
 
@@ -79,15 +90,10 @@ class _SendPageState extends State<SendPage> {
     setState(() {
       _selectedFile = filePath;
     });
-
-    print("Selected file: $_selectedFile");
   }
 
   Future<void> _sendFile(String ip) async {
-    if (_selectedFile == null) {
-      print("No file selected");
-      return;
-    }
+    if (_selectedFile == null) return;
 
     await TcpClient.tcpConnect(ip, _selectedFile!);
   }
@@ -193,7 +199,8 @@ class DeviceCard extends StatelessWidget {
                         device.ipAddress,
                         style: text.bodySmall?.copyWith(
                           fontFamily: 'monospace',
-                          color: colors.onSurface.withValues(alpha: 0.5),
+                          color:
+                              colors.onSurface.withAlpha((0.5 * 255).round()),
                         ),
                       ),
                     ],

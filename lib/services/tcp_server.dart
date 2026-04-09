@@ -1,31 +1,33 @@
 import 'dart:io';
+import 'package:flutter/material.dart';
 import 'package:sefyra/services/file_handler.dart';
 
 class TcpServer {
-  static ServerSocket? _server;
+  final ValueNotifier<bool> isTransferring = ValueNotifier(false);
+  final ValueNotifier<double> progress = ValueNotifier(0.0);
+  final ValueNotifier<String?> currentFileName = ValueNotifier(null);
+  final ValueNotifier<String?> senderName = ValueNotifier(null);
 
-  static Future<void> startTCP() async {
+  ServerSocket? _server;
+
+  Future<void> startTCP() async {
     _server = await ServerSocket.bind(
       InternetAddress.anyIPv4,
       28170,
     );
 
-    print("TCP Server started on port 28170");
-
     _server!.listen((client) {
       _handleClient(client);
-    }, onError: (error) {
-      print("TCP SERVER ERROR: $error");
     });
   }
 
-  static Future<void> _handleClient(Socket client) async {
-    print("Client connected: ${client.remoteAddress.address}");
+  Future<void> _handleClient(Socket client) async {
+    final List<int> buffer = [];
+    final List<int> headerBuffer = [];
 
-    List<int> buffer = [];
-    List<int> headerBuffer = [];
     int? expectedSize;
     String? fileName;
+    String? sender;
     bool headerDone = false;
 
     try {
@@ -33,32 +35,33 @@ class TcpServer {
         int index = 0;
 
         while (index < data.length) {
-          // 🔹 READ HEADER
           if (!headerDone) {
             if (data[index] == 10) {
               final header = String.fromCharCodes(headerBuffer).trim();
-
-              print("HEADER: $header");
-
               final parts = header.split('|');
 
-              if (parts.length != 2) {
-                print("INVALID HEADER FORMAT");
+              if (parts.length != 3) {
                 await client.close();
                 return;
               }
 
               fileName = parts[0];
               expectedSize = int.tryParse(parts[1]);
+              sender = parts[2];
 
-              if (expectedSize == null || expectedSize < 0) {
-                print("INVALID SIZE");
+              if (expectedSize == null || expectedSize <= 0) {
                 await client.close();
                 return;
               }
 
               headerDone = true;
               headerBuffer.clear();
+
+              currentFileName.value = fileName;
+              senderName.value = sender;
+              progress.value = 0.0;
+              isTransferring.value = true;
+
               index++;
               continue;
             }
@@ -68,42 +71,51 @@ class TcpServer {
             continue;
           }
 
-          // 🔹 READ FILE DATA
-          final remainingBytes = data.length - index;
-          final bytesNeeded = expectedSize! - buffer.length;
+          final remaining = data.length - index;
+          final needed = expectedSize! - buffer.length;
 
-          final bytesToTake =
-              remainingBytes < bytesNeeded ? remainingBytes : bytesNeeded;
+          final take = remaining < needed ? remaining : needed;
 
-          buffer.addAll(data.sublist(index, index + bytesToTake));
-          index += bytesToTake;
+          buffer.addAll(data.sublist(index, index + take));
+          index += take;
 
-          // 🔹 FILE COMPLETE
+          progress.value = (buffer.length / expectedSize).clamp(0.0, 1.0);
+
           if (buffer.length == expectedSize) {
-            try {
-              await FileHandler().saveToDownloads(buffer, fileName!);
-              print("File received: $fileName");
-            } catch (e) {
-              print("SAVE ERROR: $e");
-            }
+            await FileHandler().saveToDownloads(buffer, fileName!);
 
-            // reset for next file
-            buffer.clear();
+            _resetState(buffer);
+
             expectedSize = null;
             fileName = null;
+            sender = null;
             headerDone = false;
           }
         }
       }
-    } catch (e) {
-      print("CLIENT STREAM ERROR: $e");
     } finally {
-      await client.close(); // ✅ graceful close
-      print("Client disconnected");
+      await client.close();
+      _resetAll();
     }
   }
 
-  static Future<void> stopTCP() async {
+  void _resetState(List<int> buffer) {
+    buffer.clear();
+
+    isTransferring.value = false;
+    progress.value = 0.0;
+    currentFileName.value = null;
+    senderName.value = null;
+  }
+
+  void _resetAll() {
+    isTransferring.value = false;
+    progress.value = 0.0;
+    currentFileName.value = null;
+    senderName.value = null;
+  }
+
+  Future<void> stopTCP() async {
     await _server?.close();
     _server = null;
   }

@@ -25,12 +25,12 @@ class _FilePickerPanelState extends State<FilePickerPanel> {
     setState(() {
       _files.add({
         "name": name,
-        "path": path, // 🔥 REAL DATA
+        "path": path,
         "type": _inferType(name),
       });
     });
 
-    widget.onFilePicked(path); // 🔥 send to parent
+    widget.onFilePicked(path);
   }
 
   void _removeFile(int index) {
@@ -40,8 +40,10 @@ class _FilePickerPanelState extends State<FilePickerPanel> {
   String _inferType(String name) {
     final ext = name.split('.').last.toLowerCase();
 
-    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'].contains(ext))
+    if (['jpg', 'jpeg', 'png', 'gif', 'webp', 'heic'].contains(ext)) {
       return 'image';
+    }
+
     if (['mp4', 'mov', 'avi', 'mkv'].contains(ext)) return 'video';
     if (['mp3', 'wav', 'aac', 'flac'].contains(ext)) return 'audio';
     if (ext == 'pdf') return 'pdf';
@@ -109,7 +111,7 @@ class _FilePickerPanelState extends State<FilePickerPanel> {
                 final path = await pickFile();
 
                 if (path != null) {
-                  _addFile(path); // 🔥 FIXED
+                  _addFile(path);
                 }
               },
               icon: const Icon(Icons.add),

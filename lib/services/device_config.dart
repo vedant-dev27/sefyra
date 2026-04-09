@@ -44,7 +44,6 @@ Future<String> getDeviceName() async {
   return deviceName;
 }
 
-//Generates and store deviceid
 Future<String> getStoreID() async {
   final pref = await SharedPreferences.getInstance();
 

@@ -1,7 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:sefyra/screen_v2/recieve_screen.dart';
+import 'package:dynamic_color/dynamic_color.dart';
 import 'package:sefyra/screen_v2/send_screen.dart';
-import 'package:sefyra/screen_v2/settings_screen.dart';
+import 'package:sefyra/services/tcp_server.dart';
 import 'package:media_store_plus/media_store_plus.dart';
 import 'dart:async';
 
@@ -10,67 +11,39 @@ Future<void> main() async {
 
   await MediaStore.ensureInitialized();
   MediaStore.appFolder = "Sefyra";
-
-  runZonedGuarded(() {
-    runApp(const MyApp());
-  }, (error, stack) {
-    print("🔥 ZONE ERROR: $error");
-    print(stack);
-  });
-
-  FlutterError.onError = (FlutterErrorDetails details) {
-    print("🔥 FLUTTER ERROR: ${details.exception}");
-    print(details.stack);
-  };
+  runApp(
+    const MyApp(),
+  );
 }
 
 class MyApp extends StatelessWidget {
   const MyApp({super.key});
 
-  static const Color vibrantBlue = Color(0xFF0063D4);
-
-  static final ColorScheme lightScheme = ColorScheme(
-    brightness: Brightness.light,
-    primary: vibrantBlue,
-    onPrimary: Colors.white,
-    secondary: vibrantBlue,
-    onSecondary: Colors.white,
-    tertiary: Colors.purpleAccent,
-    onTertiary: Colors.white,
-    surface: Colors.white,
-    onSurface: Colors.black,
-    error: Colors.red,
-    onError: Colors.white,
-  );
-
-  static final ColorScheme darkScheme = ColorScheme(
-    brightness: Brightness.dark,
-    primary: vibrantBlue,
-    onPrimary: Colors.white,
-    secondary: vibrantBlue,
-    onSecondary: Colors.white,
-    tertiary: Colors.purpleAccent,
-    onTertiary: Colors.white,
-    surface: const Color(0xFF121212),
-    onSurface: Colors.white,
-    error: Colors.red,
-    onError: Colors.black,
-  );
-
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
-      debugShowCheckedModeBanner: false,
-      themeMode: ThemeMode.system,
-      theme: ThemeData(
-        useMaterial3: true,
-        colorScheme: lightScheme,
-      ),
-      darkTheme: ThemeData(
-        useMaterial3: true,
-        colorScheme: darkScheme,
-      ),
-      home: const HomeScreen(),
+    return DynamicColorBuilder(
+      builder: (lightScheme, darkScheme) {
+        return MaterialApp(
+          debugShowCheckedModeBanner: false,
+          themeMode: ThemeMode.system,
+          theme: ThemeData(
+            useMaterial3: true,
+            colorScheme: lightScheme ??
+                ColorScheme.fromSeed(
+                  seedColor: const Color(0xFF0063D4),
+                ),
+          ),
+          darkTheme: ThemeData(
+            useMaterial3: true,
+            colorScheme: darkScheme ??
+                ColorScheme.fromSeed(
+                  seedColor: const Color(0xFF0063D4),
+                  brightness: Brightness.dark,
+                ),
+          ),
+          home: const HomeScreen(),
+        );
+      },
     );
   }
 }
@@ -83,46 +56,36 @@ class HomeScreen extends StatefulWidget {
 }
 
 class _HomeScreenState extends State<HomeScreen> {
+  final TcpServer tcpServer = TcpServer();
+
+  @override
+  void initState() {
+    super.initState();
+    tcpServer.startTCP();
+  }
+
+  @override
+  void dispose() {
+    tcpServer.stopTCP();
+    super.dispose();
+  }
+
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      body: Stack(
-        children: [
-          PageView(
-            scrollDirection: Axis.horizontal,
+      body: ValueListenableBuilder<bool>(
+        valueListenable: tcpServer.isTransferring,
+        builder: (context, isTransferring, _) {
+          return PageView(
+            physics: isTransferring
+                ? const NeverScrollableScrollPhysics()
+                : const BouncingScrollPhysics(),
             children: [
-              RecievePage(),
-              SendPage(),
+              RecievePage(tcpServer: tcpServer),
+              SendPage(tcpServer: tcpServer),
             ],
-          ),
-          Positioned(
-            top: MediaQuery.of(context).padding.top + 8,
-            right: 12,
-            child: Row(
-              children: [
-                IconButton(
-                  icon: Icon(
-                    Icons.history,
-                  ),
-                  onPressed: () {},
-                ),
-                IconButton(
-                  icon: Icon(
-                    Icons.settings,
-                  ),
-                  onPressed: () {
-                    Navigator.push(
-                      context,
-                      MaterialPageRoute(
-                        builder: (context) => const SettingsScreen(),
-                      ),
-                    );
-                  },
-                ),
-              ],
-            ),
-          ),
-        ],
+          );
+        },
       ),
     );
   }
