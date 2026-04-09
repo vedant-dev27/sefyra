@@ -3,46 +3,32 @@ import 'package:media_store_plus/media_store_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
 class FileHandler {
-  Future<Directory> _getTempDir() async {
-    return await getTemporaryDirectory();
-  }
+  Future<Directory> _dir() async => getTemporaryDirectory();
 
   Future<IOSink> openSink(String fileName) async {
-    final dir = await _getTempDir();
-
-    final safeName = _sanitize(fileName);
-    final tempFile = File('${dir.path}/$safeName.part');
-
-    if (await tempFile.exists()) {
-      await tempFile.delete();
-    }
-
-    return tempFile.openWrite();
+    final d = await _dir();
+    final name = _sanitize(fileName);
+    final f = File('${d.path}/$name.part');
+    if (await f.exists()) await f.delete();
+    return f.openWrite();
   }
 
-  Future<void> finalizeFile(String tempName, String finalName) async {
-    final dir = await getTemporaryDirectory();
-
-    final tempFile = File('${dir.path}/$tempName');
-
-    if (!await tempFile.exists()) {
-      throw Exception("Temp file missing");
-    }
-
+  Future<void> finalizeFile(String fileName) async {
+    final d = await _dir();
+    final name = _sanitize(fileName);
+    final f = File('${d.path}/$name.part');
+    if (!await f.exists()) throw Exception();
     await MediaStore().saveFile(
-      tempFilePath: tempFile.path,
+      tempFilePath: f.path,
       dirType: DirType.download,
       dirName: DirName.download,
     );
-
-    await tempFile.delete();
+    await f.delete();
   }
 
   Future<void> cleanupTemp() async {
-    final dir = await _getTempDir();
-
-    final files = dir.listSync();
-
+    final d = await _dir();
+    final files = d.listSync();
     for (final f in files) {
       if (f.path.endsWith('.part')) {
         try {
@@ -52,7 +38,5 @@ class FileHandler {
     }
   }
 
-  String _sanitize(String name) {
-    return name.split('/').last.split('\\').last;
-  }
+  String _sanitize(String n) => n.split('/').last.split('\\').last;
 }

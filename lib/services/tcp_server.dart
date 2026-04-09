@@ -14,11 +14,7 @@ class TcpServer {
   bool _busy = false;
 
   Future<void> startTCP() async {
-    _server = await ServerSocket.bind(
-      InternetAddress.anyIPv4,
-      28170,
-    );
-
+    _server = await ServerSocket.bind(InternetAddress.anyIPv4, 28170);
     _server!.listen((client) {
       if (_busy) {
         client.destroy();
@@ -27,109 +23,72 @@ class TcpServer {
       _busy = true;
       _handleClient(client);
     });
-
-    debugPrint("TCP Server started on port 28170");
   }
 
   Future<void> _handleClient(Socket client) async {
-    IOSink? fileSink;
-
+    IOSink? sink;
     try {
-      final stream = client.timeout(const Duration(seconds: 30));
+      final reader = _Reader(client.timeout(const Duration(seconds: 30)));
 
-      final headerLengthBytes = await _readExact(stream, 4);
-      final headerLength = ByteData.sublistView(
-        Uint8List.fromList(headerLengthBytes),
-      ).getUint32(0, Endian.big);
+      final lenBytes = await reader.read(4);
+      final len = ByteData.sublistView(Uint8List.fromList(lenBytes))
+          .getUint32(0, Endian.big);
 
-      final headerBytes = await _readExact(stream, headerLength);
-      final headerJson = jsonDecode(utf8.decode(headerBytes));
+      final headerBytes = await reader.read(len);
+      final header = jsonDecode(utf8.decode(headerBytes));
 
-      String fileName = _sanitizeFileName(headerJson['fileName']);
-      final int fileSize = headerJson['size'];
-      final String sender = headerJson['sender'];
+      final fileName = _sanitize(header['fileName']);
+      final size = header['size'];
+      final sender = header['sender'];
 
-      if (fileSize <= 0) {
-        throw Exception("Invalid file size");
-      }
+      if (size <= 0) throw Exception();
 
       currentFileName.value = fileName;
       senderName.value = sender;
       progress.value = 0.0;
       isTransferring.value = true;
 
-      final tempName = "$fileName.part";
-      fileSink = await FileHandler().openSink(tempName);
+      sink = await FileHandler().openSink(fileName);
 
       int received = 0;
 
-      await for (final chunk in stream) {
-        final remaining = fileSize - received;
-        final toWrite =
-            chunk.length > remaining ? chunk.sublist(0, remaining) : chunk;
+      await for (final chunk in reader.stream()) {
+        final remain = size - received;
+        final data = chunk.length > remain ? chunk.sublist(0, remain) : chunk;
 
-        fileSink.add(toWrite);
-        received += toWrite.length;
+        sink.add(data);
+        received += data.length;
 
-        progress.value = received / fileSize;
+        progress.value = received / size;
 
-        if (received >= fileSize) break;
+        if (received >= size) break;
       }
 
-      if (received != fileSize) {
-        throw Exception("Transfer incomplete");
-      }
+      if (received != size) throw Exception();
 
-      await fileSink.flush();
-      await fileSink.close();
-      fileSink = null;
+      await sink.flush();
+      await sink.close();
+      sink = null;
 
-      await FileHandler().finalizeFile(tempName, fileName);
-
-      debugPrint("File received: $fileName");
+      await FileHandler().finalizeFile(fileName);
 
       client.write("OK");
-    } catch (e) {
-      debugPrint("Transfer error: $e");
-
-      await fileSink?.close();
-
+    } catch (_) {
+      await sink?.close();
       await FileHandler().cleanupTemp();
-
       try {
         client.write("FAILED");
       } catch (_) {}
     } finally {
       await client.close();
-      _resetState();
+      _reset();
       _busy = false;
     }
   }
 
-  Future<List<int>> _readExact(
-    Stream<List<int>> stream,
-    int length,
-  ) async {
-    final buffer = <int>[];
+  String _sanitize(String n) => n.split('/').last.split('\\').last;
 
-    await for (final chunk in stream) {
-      buffer.addAll(chunk);
-
-      if (buffer.length >= length) {
-        final result = buffer.sublist(0, length);
-
-        return result;
-      }
-    }
-
-    throw Exception("Stream ended early");
-  }
-
-  String _sanitizeFileName(String name) {
-    return name.split('/').last.split('\\').last;
-  }
-
-  void _resetState() {
+  void _reset() {
     isTransferring.value = false;
     progress.value = 0.0;
     currentFileName.value = null;
@@ -139,5 +98,32 @@ class TcpServer {
   Future<void> stopTCP() async {
     await _server?.close();
     _server = null;
+  }
+}
+
+class _Reader {
+  final Stream<List<int>> _stream;
+  final List<int> _buffer = [];
+
+  _Reader(this._stream);
+
+  Future<List<int>> read(int n) async {
+    while (_buffer.length < n) {
+      final chunk = await _stream.first;
+      _buffer.addAll(chunk);
+    }
+    final out = _buffer.sublist(0, n);
+    _buffer.removeRange(0, n);
+    return out;
+  }
+
+  Stream<List<int>> stream() async* {
+    if (_buffer.isNotEmpty) {
+      yield List<int>.from(_buffer);
+      _buffer.clear();
+    }
+    await for (final c in _stream) {
+      yield c;
+    }
   }
 }
