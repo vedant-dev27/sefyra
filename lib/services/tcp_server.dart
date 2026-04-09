@@ -1,6 +1,4 @@
-import 'dart:convert';
 import 'dart:io';
-import 'dart:typed_data';
 import 'package:flutter/material.dart';
 import 'package:sefyra/services/file_handler.dart';
 
@@ -11,84 +9,99 @@ class TcpServer {
   final ValueNotifier<String?> senderName = ValueNotifier(null);
 
   ServerSocket? _server;
-  bool _busy = false;
 
   Future<void> startTCP() async {
     _server = await ServerSocket.bind(InternetAddress.anyIPv4, 28170);
-    _server!.listen((client) {
-      if (_busy) {
-        client.destroy();
-        return;
-      }
-      _busy = true;
-      _handleClient(client);
-    });
+    _server!.listen(_handleClient);
   }
 
   Future<void> _handleClient(Socket client) async {
+    final headerBuffer = <int>[];
+
+    int? expectedSize;
+    int received = 0;
+    String? fileName;
+    String? sender;
+    bool headerDone = false;
     IOSink? sink;
+
     try {
-      final reader = _Reader(client.timeout(const Duration(seconds: 30)));
+      await for (final data in client) {
+        int index = 0;
 
-      final lenBytes = await reader.read(4);
-      final len = ByteData.sublistView(Uint8List.fromList(lenBytes))
-          .getUint32(0, Endian.big);
+        while (index < data.length) {
+          if (!headerDone) {
+            if (data[index] == 10) {
+              final header = String.fromCharCodes(headerBuffer).trim();
+              final parts = header.split('|');
 
-      final headerBytes = await reader.read(len);
-      final header = jsonDecode(utf8.decode(headerBytes));
+              if (parts.length != 3) {
+                await client.close();
+                return;
+              }
 
-      final fileName = _sanitize(header['fileName']);
-      final size = header['size'];
-      final sender = header['sender'];
+              fileName = parts[0];
+              expectedSize = int.tryParse(parts[1]);
+              sender = parts[2];
 
-      if (size <= 0) throw Exception();
+              if (expectedSize == null || expectedSize <= 0) {
+                await client.close();
+                return;
+              }
 
-      currentFileName.value = fileName;
-      senderName.value = sender;
-      progress.value = 0.0;
-      isTransferring.value = true;
+              sink = await FileHandler().openSink(fileName);
 
-      sink = await FileHandler().openSink(fileName);
+              headerDone = true;
+              headerBuffer.clear();
 
-      int received = 0;
+              currentFileName.value = fileName;
+              senderName.value = sender;
+              progress.value = 0.0;
+              isTransferring.value = true;
 
-      await for (final chunk in reader.stream()) {
-        final remain = size - received;
-        final data = chunk.length > remain ? chunk.sublist(0, remain) : chunk;
+              index++;
+              continue;
+            }
 
-        sink.add(data);
-        received += data.length;
+            headerBuffer.add(data[index]);
+            index++;
+            continue;
+          }
 
-        progress.value = received / size;
+          final remaining = data.length - index;
+          final needed = expectedSize! - received;
+          final take = remaining < needed ? remaining : needed;
 
-        if (received >= size) break;
+          sink!.add(data.sublist(index, index + take));
+          received += take;
+          index += take;
+
+          progress.value = (received / expectedSize).clamp(0.0, 1.0);
+
+          if (received == expectedSize) {
+            await sink.flush();
+            await sink.close();
+            await FileHandler().commitFromSink(fileName!);
+
+            sink = null;
+            expectedSize = null;
+            received = 0;
+            fileName = null;
+            sender = null;
+            headerDone = false;
+
+            _resetAll();
+          }
+        }
       }
-
-      if (received != size) throw Exception();
-
-      await sink.flush();
-      await sink.close();
-      sink = null;
-
-      await FileHandler().finalizeFile(fileName);
-
-      client.write("OK");
-    } catch (_) {
-      await sink?.close();
-      await FileHandler().cleanupTemp();
-      try {
-        client.write("FAILED");
-      } catch (_) {}
     } finally {
+      await sink?.close();
       await client.close();
-      _reset();
-      _busy = false;
+      _resetAll();
     }
   }
 
-  String _sanitize(String n) => n.split('/').last.split('\\').last;
-
-  void _reset() {
+  void _resetAll() {
     isTransferring.value = false;
     progress.value = 0.0;
     currentFileName.value = null;
@@ -98,32 +111,5 @@ class TcpServer {
   Future<void> stopTCP() async {
     await _server?.close();
     _server = null;
-  }
-}
-
-class _Reader {
-  final Stream<List<int>> _stream;
-  final List<int> _buffer = [];
-
-  _Reader(this._stream);
-
-  Future<List<int>> read(int n) async {
-    while (_buffer.length < n) {
-      final chunk = await _stream.first;
-      _buffer.addAll(chunk);
-    }
-    final out = _buffer.sublist(0, n);
-    _buffer.removeRange(0, n);
-    return out;
-  }
-
-  Stream<List<int>> stream() async* {
-    if (_buffer.isNotEmpty) {
-      yield List<int>.from(_buffer);
-      _buffer.clear();
-    }
-    await for (final c in _stream) {
-      yield c;
-    }
   }
 }

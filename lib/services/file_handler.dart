@@ -3,40 +3,24 @@ import 'package:media_store_plus/media_store_plus.dart';
 import 'package:path_provider/path_provider.dart';
 
 class FileHandler {
-  Future<Directory> _dir() async => getTemporaryDirectory();
-
   Future<IOSink> openSink(String fileName) async {
-    final d = await _dir();
-    final name = _sanitize(fileName);
-    final f = File('${d.path}/$name.part');
-    if (await f.exists()) await f.delete();
-    return f.openWrite();
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/$fileName');
+    return file.openWrite();
   }
 
-  Future<void> finalizeFile(String fileName) async {
-    final d = await _dir();
-    final name = _sanitize(fileName);
-    final f = File('${d.path}/$name.part');
-    if (!await f.exists()) throw Exception();
+  Future<void> commitFromSink(String fileName) async {
+    final dir = await getTemporaryDirectory();
+    final file = File('${dir.path}/$fileName');
+
     await MediaStore().saveFile(
-      tempFilePath: f.path,
+      tempFilePath: file.path,
       dirType: DirType.download,
       dirName: DirName.download,
     );
-    await f.delete();
-  }
 
-  Future<void> cleanupTemp() async {
-    final d = await _dir();
-    final files = d.listSync();
-    for (final f in files) {
-      if (f.path.endsWith('.part')) {
-        try {
-          await File(f.path).delete();
-        } catch (_) {}
-      }
+    if (await file.exists()) {
+      await file.delete();
     }
   }
-
-  String _sanitize(String n) => n.split('/').last.split('\\').last;
 }
